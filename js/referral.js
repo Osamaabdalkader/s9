@@ -1,4 +1,4 @@
-// js/referral.js - نظام الإحالة الكامل (مصحح العلاقات والمشاكل)
+// js/referral.js - نظام الإحالة الكامل (بدون دوال SQL معقدة)
 class ReferralSystem {
     static async generateReferralCode(userId) {
         try {
@@ -75,7 +75,7 @@ class ReferralSystem {
     }
 
     static generateRandomCode(length) {
-        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // إزالة الأحرف المتشابهة
+        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
         let result = '';
         for (let i = 0; i < length; i++) {
             result += chars.charAt(Math.floor(Math.random() * chars.length));
@@ -273,9 +273,10 @@ class ReferralSystem {
         }
     }
 
+    // الدالة الرئيسية الجديدة - بسيطة وموثوقة
     static async getUserReferralStats(userId) {
         try {
-            console.log('🔹 جلب إحصائيات الإحالة للمستخدم:', userId);
+            console.log('🔹 جلب إحصائيات الإحالة بطريقة بسيطة للمستخدم:', userId);
             
             if (!userId) {
                 throw new Error('معرف المستخدم مطلوب');
@@ -283,32 +284,29 @@ class ReferralSystem {
             
             // 1. جلب رمز الإحالة
             const referralCode = await this.getOrCreateReferralCode(userId);
-            console.log('✅ رمز الإحالة:', referralCode);
+            console.log('✅ رمز الإحالة:', referralCode?.code);
             
-            // 2. جلب الشبكة الكاملة
-            const referrals = await this.getFullReferralNetwork(userId);
-            console.log('✅ عدد الإحالات في الشبكة:', referrals.length);
+            // 2. جلب الإحالات المباشرة فقط (بدون تعقيد)
+            const directReferrals = await this.getDirectReferralsSimple(userId);
+            console.log('✅ عدد الإحالات المباشرة:', directReferrals.length);
             
-            // 3. حساب الإحصائيات
-            const totalCount = referrals.length;
-            const directCount = referrals.filter(r => r.level === 1).length;
-            const maxLevel = totalCount > 0 ? Math.max(...referrals.map(r => r.level || 1)) : 0;
+            // 3. جلب إحصائيات العداد من الجدول
+            const referralCount = await this.getReferralCountFromTable(userId);
             
             const stats = {
                 code: referralCode?.code || 'غير متوفر',
-                referralCount: totalCount,
-                totalNetworkCount: totalCount,
-                directReferralCount: directCount,
-                maxLevel: maxLevel,
-                referrals: referrals
+                referralCount: referralCount,
+                totalNetworkCount: directReferrals.length, // حالياً نفس الإحالات المباشرة
+                directReferralCount: directReferrals.length,
+                maxLevel: 1, // حالياً مستوى واحد فقط
+                referrals: directReferrals
             };
             
-            console.log('📊 الإحصائيات النهائية:', stats);
+            console.log('📊 الإحصائيات النهائية (مبسطة):', stats);
             return stats;
         } catch (error) {
             console.error('❌ Error getting referral stats:', error);
-            
-            // إرجاع إحصائيات افتراضية مع رسالة خطأ
+            // إرجاع إحصائيات افتراضية في حالة الخطأ
             return {
                 code: 'غير متوفر',
                 referralCount: 0,
@@ -321,56 +319,73 @@ class ReferralSystem {
         }
     }
 
-    static async getFullReferralNetwork(userId) {
+    // دالة بسيطة لجلب الإحالات المباشرة فقط
+    static async getDirectReferralsSimple(userId) {
         try {
-            console.log('🔹 جلب الشبكة الكاملة للإحالات للمستخدم:', userId);
+            console.log('🔹 جلب الإحالات المباشرة للمستخدم:', userId);
             
-            const { data, error } = await supabase
-                .rpc('get_full_referral_network', { 
-                    root_user_id: userId 
-                });
-            
-            if (error) {
-                console.error('❌ خطأ في جلب الشبكة الكاملة:', error);
-                console.log('🔄 المحاولة باستخدام الطريقة البديلة...');
-                return await this.getUserDirectReferrals(userId);
-            }
-            
-            console.log('✅ تم جلب الشبكة الكاملة بنجاح:', data);
-            return data || [];
-        } catch (error) {
-            console.error('❌ Error getting full referral network:', error);
-            return await this.getUserDirectReferrals(userId);
-        }
-    }
-
-    static async getUserDirectReferrals(userId) {
-        try {
             const { data, error } = await supabase
                 .from('referrals')
-                .select('*, profiles:referred_id(email, full_name)')
+                .select(`
+                    referred_id,
+                    referrer_id,
+                    created_at,
+                    referral_code,
+                    profiles:referred_id(email, full_name)
+                `)
                 .eq('referrer_id', userId)
                 .order('created_at', { ascending: false });
             
-            if (error) throw error;
+            if (error) {
+                console.error('❌ خطأ في جلب الإحالات المباشرة:', error);
+                return [];
+            }
             
-            const referralsWithUsers = (data || []).map(ref => {
-                return {
-                    user_id: ref.referred_id,
-                    user_email: ref.profiles?.email || `مستخدم ${ref.referred_id?.substring(0, 8)}...`,
-                    user_name: ref.profiles?.full_name || 'مستخدم غير معروف',
-                    level: 1,
-                    referred_by: ref.referrer_id,
-                    referral_path: ref.referrer_id,
-                    created_at: ref.created_at
-                };
-            });
+            const referrals = (data || []).map(ref => ({
+                user_id: ref.referred_id,
+                user_email: ref.profiles?.email || `مستخدم ${ref.referred_id?.substring(0, 8)}...`,
+                user_name: ref.profiles?.full_name || 'مستخدم غير معروف',
+                level: 1,
+                referred_by: ref.referrer_id,
+                referral_path: `${ref.referrer_id} -> ${ref.referred_id}`,
+                created_at: ref.created_at
+            }));
             
-            return referralsWithUsers;
+            console.log('✅ تم جلب الإحالات المباشرة بنجاح:', referrals.length);
+            return referrals;
         } catch (error) {
-            console.error('❌ Error getting user referrals:', error);
+            console.error('❌ Error getting direct referrals:', error);
             return [];
         }
+    }
+
+    // دالة مساعدة لجلب عدد الإحالات من الجدول
+    static async getReferralCountFromTable(userId) {
+        try {
+            const { data, error } = await supabase
+                .from('referral_codes')
+                .select('referral_count')
+                .eq('user_id', userId)
+                .single();
+            
+            if (error) {
+                console.log('⚠️ استخدام العدد من الإحالات المباشرة');
+                const referrals = await this.getDirectReferralsSimple(userId);
+                return referrals.length;
+            }
+            
+            return data?.referral_count || 0;
+        } catch (error) {
+            console.error('❌ Error getting referral count from table:', error);
+            return 0;
+        }
+    }
+
+    // دالة مساعدة للتحقق من صحة UUID
+    static isValidUUID(uuid) {
+        if (!uuid) return false;
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        return uuidRegex.test(uuid);
     }
 
     static getReferralLink(code) {
@@ -445,6 +460,7 @@ class ReferralSystem {
     }
 }
 
+// التهيئة التلقائية
 document.addEventListener('DOMContentLoaded', () => {
     ReferralSystem.init();
 });
