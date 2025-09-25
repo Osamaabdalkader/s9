@@ -281,29 +281,42 @@ class ReferralSystem {
                 throw new Error('معرف المستخدم مطلوب');
             }
             
+            // 1. جلب رمز الإحالة
             const referralCode = await this.getOrCreateReferralCode(userId);
+            console.log('✅ رمز الإحالة:', referralCode);
+            
+            // 2. جلب الشبكة الكاملة
             const referrals = await this.getFullReferralNetwork(userId);
+            console.log('✅ عدد الإحالات في الشبكة:', referrals.length);
+            
+            // 3. حساب الإحصائيات
+            const totalCount = referrals.length;
+            const directCount = referrals.filter(r => r.level === 1).length;
+            const maxLevel = totalCount > 0 ? Math.max(...referrals.map(r => r.level || 1)) : 0;
             
             const stats = {
                 code: referralCode?.code || 'غير متوفر',
-                referralCount: referrals.length,
-                totalNetworkCount: referrals.length,
-                directReferralCount: referrals.filter(r => r.level === 1).length,
-                maxLevel: referrals.length > 0 ? Math.max(...referrals.map(r => r.level || 1)) : 0,
-                referrals: referrals || []
+                referralCount: totalCount,
+                totalNetworkCount: totalCount,
+                directReferralCount: directCount,
+                maxLevel: maxLevel,
+                referrals: referrals
             };
             
-            console.log('✅ الإحصائيات المستلمة:', stats);
+            console.log('📊 الإحصائيات النهائية:', stats);
             return stats;
         } catch (error) {
             console.error('❌ Error getting referral stats:', error);
+            
+            // إرجاع إحصائيات افتراضية مع رسالة خطأ
             return {
                 code: 'غير متوفر',
                 referralCount: 0,
                 totalNetworkCount: 0,
                 directReferralCount: 0,
                 maxLevel: 0,
-                referrals: []
+                referrals: [],
+                error: error.message
             };
         }
     }
@@ -319,10 +332,11 @@ class ReferralSystem {
             
             if (error) {
                 console.error('❌ خطأ في جلب الشبكة الكاملة:', error);
+                console.log('🔄 المحاولة باستخدام الطريقة البديلة...');
                 return await this.getUserDirectReferrals(userId);
             }
             
-            console.log('✅ تم جلب الشبكة الكاملة بنجاح، عدد المستخدمين:', data?.length || 0);
+            console.log('✅ تم جلب الشبكة الكاملة بنجاح:', data);
             return data || [];
         } catch (error) {
             console.error('❌ Error getting full referral network:', error);
