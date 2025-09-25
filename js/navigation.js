@@ -117,44 +117,56 @@ class Navigation {
 
     static async handleReferralPage() {
         if (!currentUser) {
-            Utils.showStatus('يجب تسجيل الدخول لعرض صفحة الإحالة', 'error');
-            Navigation.showPage('login');
+            Utils.showStatus('يجب تسجيل الدخول لعرض صفحة الإحالة', 'error', 'referral-status');
+            setTimeout(() => Navigation.showPage('login'), 2000);
             return;
         }
 
         try {
-            Utils.showStatus('جاري تحميل إحصائيات الإحالة...', 'success');
+            Utils.showStatus('جاري تحميل إحصائيات الإحالة...', 'success', 'referral-status');
             
             const stats = await ReferralSystem.getUserReferralStats(currentUser.id);
+            console.log('📊 الإحصائيات المستلمة:', stats);
+            
             this.displayReferralStats(stats);
             
-            Utils.showStatus('تم تحميل البيانات بنجاح', 'success');
+            Utils.showStatus('تم تحميل البيانات بنجاح', 'success', 'referral-status');
         } catch (error) {
             console.error('❌ Error loading referral stats:', error);
-            Utils.showStatus(`خطأ في تحميل الإحصائيات: ${error.message}`, 'error');
+            Utils.showStatus(`خطأ في تحميل الإحصائيات: ${error.message}`, 'error', 'referral-status');
         }
     }
 
     static displayReferralStats(stats) {
         console.log('🔹 عرض إحصائيات الإحالة:', stats);
         
-        const countEl = document.getElementById('referral-count');
-        const directCountEl = document.getElementById('direct-referral-count');
-        const totalNetworkEl = document.getElementById('total-network-count');
-        const networkLevelsEl = document.getElementById('network-levels');
-        const networkLevelsCountEl = document.getElementById('network-levels-count');
-        const codeEl = document.getElementById('referral-code');
+        // تحديث جميع العناصر بشكل منفصل
+        const elements = {
+            'referral-count': stats.referralCount || 0,
+            'direct-referral-count': stats.directReferralCount || 0,
+            'referral-code': stats.code || 'غير متوفر',
+            'network-levels': stats.maxLevel || 0,
+            'total-network-count': stats.totalNetworkCount || 0,
+            'network-levels-count': stats.maxLevel || 0
+        };
+        
+        for (const [id, value] of Object.entries(elements)) {
+            const element = document.getElementById(id);
+            if (element) {
+                element.textContent = value;
+                console.log(`✅ تحديث ${id}: ${value}`);
+            } else {
+                console.warn(`❌ العنصر غير موجود: ${id}`);
+            }
+        }
+        
+        // تحديث رابط الإحالة
         const linkInput = document.getElementById('referral-link-input');
-        
-        if (countEl) countEl.textContent = stats.referralCount || 0;
-        if (directCountEl) directCountEl.textContent = stats.directReferralCount || 0;
-        if (totalNetworkEl) totalNetworkEl.textContent = stats.totalNetworkCount || 0;
-        if (networkLevelsEl) networkLevelsEl.textContent = stats.maxLevel || 0;
-        if (networkLevelsCountEl) networkLevelsCountEl.textContent = stats.maxLevel || 0;
-        
-        if (codeEl) codeEl.textContent = stats.code || 'غير متوفر';
-        if (linkInput) linkInput.value = ReferralSystem.getReferralLink(stats.code);
+        if (linkInput) {
+            linkInput.value = ReferralSystem.getReferralLink(stats.code);
+        }
 
+        // عرض قائمة الإحالات
         this.displayReferralsList(stats.referrals || []);
     }
 
@@ -297,4 +309,4 @@ class Navigation {
     static rebindPageEvents(pageId) {
         console.log(`🔹 إعادة ربط أحداث الصفحة: ${pageId}`);
     }
-}
+        }
