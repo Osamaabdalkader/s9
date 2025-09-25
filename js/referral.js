@@ -1,4 +1,4 @@
-// js/referral.js - نظام الإحالة الكامل (بدون دوال SQL معقدة)
+// js/referral.js - نظام الإحالة الكامل (الإصدار الأصلي المحسن)
 class ReferralSystem {
     static async generateReferralCode(userId) {
         try {
@@ -8,7 +8,6 @@ class ReferralSystem {
                 throw new Error('معرف المستخدم مطلوب لإنشاء رمز إحالة');
             }
             
-            // إنشاء رمز فريد مع التحقق من التكرار
             let code;
             let isUnique = false;
             let attempts = 0;
@@ -18,7 +17,6 @@ class ReferralSystem {
                 code = this.generateRandomCode(8);
                 console.log('🔹 المحاولة', attempts + 1, 'الرمز المولد:', code);
                 
-                // التحقق من التكرار باستخدام استعلام مباشر
                 const { data: existingCode, error: checkError } = await supabase
                     .from('referral_codes')
                     .select('id')
@@ -26,7 +24,6 @@ class ReferralSystem {
                     .maybeSingle();
                 
                 if (checkError && checkError.code === 'PGRST116') {
-                    // لا يوجد رمز - فريد
                     isUnique = true;
                 } else if (!existingCode) {
                     isUnique = true;
@@ -44,7 +41,6 @@ class ReferralSystem {
             
             console.log('✅ رمز فريد تم إنشاؤه:', code);
             
-            // إدخال الرمز في قاعدة البيانات
             const { data, error } = await supabase
                 .from('referral_codes')
                 .insert([
@@ -59,8 +55,7 @@ class ReferralSystem {
             
             if (error) {
                 console.error('❌ خطأ في إدخال الرمز:', error);
-                // إذا كان الخطأ بسبب تكرار الرمز (على الرغم من التحقق)، نحاول مرة أخرى
-                if (error.code === '23505') { // unique violation
+                if (error.code === '23505') {
                     return await this.generateReferralCode(userId);
                 }
                 throw error;
@@ -91,7 +86,6 @@ class ReferralSystem {
                 throw new Error('معرف المستخدم مطلوب');
             }
             
-            // محاولة جلب الرمز الموجود
             const { data, error } = await supabase
                 .from('referral_codes')
                 .select('*')
@@ -99,7 +93,6 @@ class ReferralSystem {
                 .maybeSingle();
             
             if (error && error.code === 'PGRST116') {
-                // لا يوجد رمز - ننشئ واحداً جديداً
                 console.log('🔹 لا يوجد رمز، جاري إنشاء رمز جديد...');
                 return await this.generateReferralCode(userId);
             } else if (error) {
@@ -107,13 +100,11 @@ class ReferralSystem {
                 throw error;
             }
             
-            // إذا كان الرمز موجوداً
             if (data) {
                 console.log('✅ تم العثور على رمز موجود:', data.code);
                 return data;
             }
             
-            // إذا لم يكن هناك رمز، ننشئ واحداً جديداً
             console.log('🔹 إنشاء رمز جديد...');
             return await this.generateReferralCode(userId);
         } catch (error) {
@@ -131,7 +122,6 @@ class ReferralSystem {
             const cleanCode = code.toUpperCase().trim();
             console.log('🔹 التحقق من صحة الرمز:', cleanCode);
             
-            // استعلام مباشر بدون علاقات معقدة
             const { data, error } = await supabase
                 .from('referral_codes')
                 .select('*')
@@ -166,15 +156,12 @@ class ReferralSystem {
                 throw new Error('بيانات الإحالة غير مكتملة');
             }
             
-            // التحقق من صحة الرمز
             const referralData = await this.validateReferralCode(referralCode);
             
-            // التأكد من أن المستخدم لا يحيل نفسه
             if (referralData.user_id === referredUserId) {
                 throw new Error('لا يمكن استخدام رمز الإحالة الخاص بك');
             }
             
-            // التحقق من عدم وجود إحالة سابقة لنفس المستخدم
             const { data: existingReferral, error: checkError } = await supabase
                 .from('referrals')
                 .select('id')
@@ -189,7 +176,6 @@ class ReferralSystem {
                 throw checkError;
             }
             
-            // تسجيل الإحالة
             const { data, error } = await supabase
                 .from('referrals')
                 .insert([
@@ -206,7 +192,6 @@ class ReferralSystem {
                 throw error;
             }
             
-            // زيادة عداد الإحالات
             await this.incrementReferralCount(referralData.user_id);
             
             console.log('✅ تمت معالجة الإحالة بنجاح');
@@ -227,7 +212,6 @@ class ReferralSystem {
             
             if (error) {
                 console.error('❌ خطأ في زيادة العداد:', error);
-                // إذا فشلت الدالة، نزيد العداد يدوياً
                 await this.incrementCountManually(userId);
                 return;
             }
@@ -235,14 +219,12 @@ class ReferralSystem {
             console.log('✅ تم زيادة العداد بنجاح');
         } catch (error) {
             console.error('❌ Error incrementing referral count:', error);
-            // نحاول الزيادة اليدوية كبديل
             await this.incrementCountManually(userId);
         }
     }
 
     static async incrementCountManually(userId) {
         try {
-            // الزيادة اليدوية للعداد كبديل إذا فشلت الدالة
             const { data: currentCode, error: fetchError } = await supabase
                 .from('referral_codes')
                 .select('referral_count')
@@ -273,115 +255,103 @@ class ReferralSystem {
         }
     }
 
-    // الدالة الرئيسية الجديدة - بسيطة وموثوقة
     static async getUserReferralStats(userId) {
         try {
-            console.log('🔹 جلب إحصائيات الإحالة بطريقة بسيطة للمستخدم:', userId);
+            console.log('🔹 جلب إحصائيات الإحالة للمستخدم:', userId);
             
             if (!userId) {
                 throw new Error('معرف المستخدم مطلوب');
             }
             
-            // 1. جلب رمز الإحالة
             const referralCode = await this.getOrCreateReferralCode(userId);
-            console.log('✅ رمز الإحالة:', referralCode?.code);
+            const referrals = await this.getFullReferralNetwork(userId);
             
-            // 2. جلب الإحالات المباشرة فقط (بدون تعقيد)
-            const directReferrals = await this.getDirectReferralsSimple(userId);
-            console.log('✅ عدد الإحالات المباشرة:', directReferrals.length);
-            
-            // 3. جلب إحصائيات العداد من الجدول
-            const referralCount = await this.getReferralCountFromTable(userId);
+            const totalCount = referrals.length;
+            const directCount = referrals.filter(r => r.level === 1).length;
+            const maxLevel = totalCount > 0 ? Math.max(...referrals.map(r => r.level || 1)) : 0;
             
             const stats = {
                 code: referralCode?.code || 'غير متوفر',
-                referralCount: referralCount,
-                totalNetworkCount: directReferrals.length, // حالياً نفس الإحالات المباشرة
-                directReferralCount: directReferrals.length,
-                maxLevel: 1, // حالياً مستوى واحد فقط
-                referrals: directReferrals
+                referralCount: totalCount,
+                totalNetworkCount: totalCount,
+                directReferralCount: directCount,
+                maxLevel: maxLevel,
+                referrals: referrals || []
             };
             
-            console.log('📊 الإحصائيات النهائية (مبسطة):', stats);
+            console.log('📊 الإحصائيات النهائية:', stats);
             return stats;
         } catch (error) {
             console.error('❌ Error getting referral stats:', error);
-            // إرجاع إحصائيات افتراضية في حالة الخطأ
             return {
                 code: 'غير متوفر',
                 referralCount: 0,
                 totalNetworkCount: 0,
                 directReferralCount: 0,
                 maxLevel: 0,
-                referrals: [],
-                error: error.message
+                referrals: []
             };
         }
     }
 
-    // دالة بسيطة لجلب الإحالات المباشرة فقط
-    static async getDirectReferralsSimple(userId) {
+    static async getFullReferralNetwork(userId) {
         try {
-            console.log('🔹 جلب الإحالات المباشرة للمستخدم:', userId);
+            console.log('🔹 جلب الشبكة الكاملة للإحالات للمستخدم:', userId);
+            
+            // التحقق من صحة UUID أولاً
+            if (!this.isValidUUID(userId)) {
+                console.error('❌ معرف المستخدم غير صالح:', userId);
+                return await this.getUserDirectReferrals(userId);
+            }
             
             const { data, error } = await supabase
+                .rpc('get_full_referral_network', { 
+                    root_user_id: userId 
+                });
+            
+            if (error) {
+                console.error('❌ خطأ في جلب الشبكة الكاملة:', error);
+                console.log('🔄 استخدام الطريقة البديلة...');
+                return await this.getUserDirectReferrals(userId);
+            }
+            
+            console.log('✅ تم جلب الشبكة الكاملة بنجاح، عدد النتائج:', data?.length || 0);
+            return data || [];
+        } catch (error) {
+            console.error('❌ Error getting full referral network:', error);
+            return await this.getUserDirectReferrals(userId);
+        }
+    }
+
+    static async getUserDirectReferrals(userId) {
+        try {
+            const { data, error } = await supabase
                 .from('referrals')
-                .select(`
-                    referred_id,
-                    referrer_id,
-                    created_at,
-                    referral_code,
-                    profiles:referred_id(email, full_name)
-                `)
+                .select('*, profiles:referred_id(email, full_name)')
                 .eq('referrer_id', userId)
                 .order('created_at', { ascending: false });
             
-            if (error) {
-                console.error('❌ خطأ في جلب الإحالات المباشرة:', error);
-                return [];
-            }
+            if (error) throw error;
             
-            const referrals = (data || []).map(ref => ({
-                user_id: ref.referred_id,
-                user_email: ref.profiles?.email || `مستخدم ${ref.referred_id?.substring(0, 8)}...`,
-                user_name: ref.profiles?.full_name || 'مستخدم غير معروف',
-                level: 1,
-                referred_by: ref.referrer_id,
-                referral_path: `${ref.referrer_id} -> ${ref.referred_id}`,
-                created_at: ref.created_at
-            }));
+            const referralsWithUsers = (data || []).map(ref => {
+                return {
+                    user_id: ref.referred_id,
+                    user_email: ref.profiles?.email || `مستخدم ${ref.referred_id?.substring(0, 8)}...`,
+                    user_name: ref.profiles?.full_name || 'مستخدم غير معروف',
+                    level: 1,
+                    referred_by: ref.referrer_id,
+                    referral_path: ref.referrer_id,
+                    created_at: ref.created_at
+                };
+            });
             
-            console.log('✅ تم جلب الإحالات المباشرة بنجاح:', referrals.length);
-            return referrals;
+            return referralsWithUsers;
         } catch (error) {
-            console.error('❌ Error getting direct referrals:', error);
+            console.error('❌ Error getting user referrals:', error);
             return [];
         }
     }
 
-    // دالة مساعدة لجلب عدد الإحالات من الجدول
-    static async getReferralCountFromTable(userId) {
-        try {
-            const { data, error } = await supabase
-                .from('referral_codes')
-                .select('referral_count')
-                .eq('user_id', userId)
-                .single();
-            
-            if (error) {
-                console.log('⚠️ استخدام العدد من الإحالات المباشرة');
-                const referrals = await this.getDirectReferralsSimple(userId);
-                return referrals.length;
-            }
-            
-            return data?.referral_count || 0;
-        } catch (error) {
-            console.error('❌ Error getting referral count from table:', error);
-            return 0;
-        }
-    }
-
-    // دالة مساعدة للتحقق من صحة UUID
     static isValidUUID(uuid) {
         if (!uuid) return false;
         const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -460,7 +430,6 @@ class ReferralSystem {
     }
 }
 
-// التهيئة التلقائية
 document.addEventListener('DOMContentLoaded', () => {
     ReferralSystem.init();
 });
