@@ -1,0 +1,96 @@
+<!-- referral.html -->
+<section id="referral-page" class="page">
+    <div class="referral-container">
+        <h1 class="section-title">نظام الإحالة</h1>
+        
+        <div class="referral-stats-card">
+            <div class="stat-item">
+                <div class="stat-icon">
+                    <i class="fas fa-users"></i>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-number" id="referral-count">0</span>
+                    <span class="stat-label">عدد المستخدمين في شبكتك الكاملة</span>
+                </div>
+            </div>
+            
+            <div class="stat-item">
+                <div class="stat-icon">
+                    <i class="fas fa-user-plus"></i>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-number" id="direct-referral-count">0</span>
+                    <span class="stat-label">المستخدمين الذين أشير إليهم مباشرة</span>
+                </div>
+            </div>
+            
+            <div class="stat-item">
+                <div class="stat-icon">
+                    <i class="fas fa-link"></i>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-number" id="referral-code">-</span>
+                    <span class="stat-label">رمز الإحالة الخاص بك</span>
+                </div>
+            </div>
+
+            <div class="stat-item">
+                <div class="stat-icon">
+                    <i class="fas fa-sitemap"></i>
+                </div>
+                <div class="stat-info">
+                    <span class="stat-number" id="network-levels">0</span>
+                    <span class="stat-label">عدد المستويات في شبكتك</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="referral-link-card">
+            <h3><i class="fas fa-share-alt"></i> رابط الإحالة الخاص بك</h3>
+            <div class="referral-link-container">
+                <input type="text" id="referral-link-input" readonly class="referral-link-input">
+                <button onclick="ReferralSystem.copyReferralLinkToClipboard()" class="copy-link-btn">
+                    <i class="fas fa-copy"></i> نسخ
+                </button>
+            </div>
+            <p class="referral-info">شارك هذا الرابط مع أصدقائك لتحصل على مكافآت عند انضمامهم</p>
+        </div>
+
+        <div class="referrals-list-card">
+            <h3><i class="fas fa-network-wired"></i> الشبكة الكاملة للإحالات</h3>
+            <div class="network-stats">
+                <span>إجمالي الشبكة: <strong id="total-network-count">0</strong> مستخدم</span>
+                <span>المستويات: <strong id="network-levels-count">0</strong> مستوى</span>
+            </div>
+            <div id="referrals-list" class="referrals-list">
+                <!-- سيتم ملء القائمة هنا -->
+            </div>
+        </div>
+
+        <div class="referral-guide">
+            <h3><i class="fas fa-question-circle"></i> كيف يعمل نظام الإحالة المتعدد المستويات؟</h3>
+            <div class="guide-steps">
+                <div class="step">
+                    <span class="step-number">1</span>
+                    <p>انسخ رابط الإحالة الخاص بك</p>
+                </div>
+                <div class="step">
+                    <span class="step-number">2</span>
+                    <p>شاركه مع أصدقائك وعائلتك</p>
+                </div>
+                <div class="step">
+                    <span class="step-number">3</span>
+                    <p>عند انضمامهم عبر رابطك، سيتم تسجيل إحالتك</p>
+                </div>
+                <div class="step">
+                    <span class="step-number">4</span>
+                    <p>المستخدمون الجدد يمكنهم بدورهم جلب مستخدمين آخرين</p>
+                </div>
+                <div class="step">
+                    <span class="step-number">5</span>
+                    <p>تحصل على مكافآت لكل المستخدمين في شبكتك الكاملة</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
